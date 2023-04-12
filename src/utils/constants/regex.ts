@@ -1,0 +1,14 @@
+import { enumh } from '@/utils/helpers';
+import { Gender, UserRole } from '@/common/enums';
+
+const GENDER = enumh?.convertToRegex<typeof Gender>(Gender);
+
+const USER_ROLE = enumh?.convertToRegex<typeof UserRole>(UserRole);
+
+const BOD = /^\d{4}(-)(((0)[0-9])|((1)[0-2]))(-)([0-2][0-9]|(3)[0-1])$/i;
+
+export default {
+  BOD,
+  GENDER,
+  USER_ROLE,
+};
