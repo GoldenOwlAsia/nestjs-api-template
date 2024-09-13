@@ -86,7 +86,9 @@ export class AdvancedExceptionFilter implements ExceptionFilter {
                 code: Exception.NOT_FOUND_CODE,
                 status,
                 message,
-                stack: exception?.cause?.stack,
+                stack: exception?.cause
+                  ? (exception?.cause as any).stack
+                  : undefined,
               };
 
               console.log("Exception Filter's Exception");

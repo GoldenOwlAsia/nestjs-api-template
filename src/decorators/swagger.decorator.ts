@@ -11,7 +11,7 @@ import {
 import type { ApiBodyOptions } from '@nestjs/swagger';
 
 export interface ISwaggerParams {
-  secure: boolean;
+  secure?: boolean;
   body?: ApiBodyOptions;
   responses?: ApiResponseOptions[];
 }
@@ -28,6 +28,7 @@ export function SwaggerApi({
   const consumeTypes = [
     'application/json',
     'application/x-www-form-urlencoded',
+    'multipart/form-data',
   ];
 
   const decorators = [];

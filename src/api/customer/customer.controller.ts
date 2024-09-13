@@ -1,7 +1,8 @@
-import { Body, Param } from '@nestjs/common';
+import { Body, Param, UploadedFile } from '@nestjs/common';
 
 import { IJwtStrategy } from '@/api/auth/strategies';
 import { InjectController, InjectRoute, ReqUser } from '@/decorators';
+import { FileValidatorPipe } from '@/pipes';
 
 import customerRoutes from './customer.routes';
 import { CustomerService } from './customer.service';
@@ -13,7 +14,7 @@ import type {
   UpdatedCustomerDto,
   GotCustomerDetailDto,
 } from './dto';
-import type { Customer } from './entities/customer.entity';
+import type { Customer } from './entities';
 
 @InjectController({ name: customerRoutes.index })
 export class CustomerController {
@@ -40,6 +41,26 @@ export class CustomerController {
     const gotCustomer = await this.customerService.getDetailById(user?.id);
 
     return gotCustomer;
+  }
+
+  @InjectRoute(customerRoutes.updateAvatar)
+  public async updateAvatar(
+    @UploadedFile(
+      new FileValidatorPipe({
+        fileTypeConfig: {
+          type: /^image\/(png|jpg|jpeg|bmp|webp)$/,
+        },
+        maxSizeConfig: {
+          size: 1 * 1024 * 1024,
+        },
+        fileIsRequired: false,
+      }),
+    )
+    file: Express.Multer.File,
+  ): Promise<void> {
+    // TODO: Implement your logic
+    console.log('File name:', file.originalname);
+    return;
   }
 
   @InjectRoute(customerRoutes.updateMe)
