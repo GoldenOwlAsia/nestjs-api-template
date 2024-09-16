@@ -1,12 +1,13 @@
 import { UserRole } from '@/common/enums';
 import { IRouteParams } from '@/decorators';
-import { HttpStatus, RequestMethod } from '@nestjs/common';
+import { HttpStatus, RequestMethod, UseGuards } from '@nestjs/common';
 import {
   GotAdminDto,
   CreatedAdminDto,
   UpdatedAdminDto,
   GotAdminDetailDto,
 } from './dto';
+import { SelfGuard } from '../auth/guards';
 
 export default {
   index: 'admins',
@@ -54,6 +55,7 @@ export default {
     path: '/:id',
     method: RequestMethod.PUT,
     roles: [UserRole.ADMIN],
+    extraDecorators: [UseGuards(SelfGuard)],
     swaggerInfo: {
       responses: [{ status: HttpStatus.OK, type: UpdatedAdminDto }],
     },
@@ -62,6 +64,7 @@ export default {
     path: '/:id',
     method: RequestMethod.DELETE,
     roles: [UserRole.ADMIN],
+    extraDecorators: [UseGuards(SelfGuard)],
     swaggerInfo: {
       responses: [
         {
