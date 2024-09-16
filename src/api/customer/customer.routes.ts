@@ -1,6 +1,9 @@
+import { HttpStatus, RequestMethod, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+
 import { UserRole } from '@/common/enums';
 import { IRouteParams } from '@/decorators';
-import { HttpStatus, RequestMethod } from '@nestjs/common';
+
 import {
   GotCustomerDto,
   CreatedCustomerDto,
@@ -43,6 +46,28 @@ export default {
     swaggerInfo: {
       responses: [{ status: HttpStatus.OK, type: UpdatedCustomerDto }],
     },
+  },
+  updateAvatar: <IRouteParams>{
+    path: '/me/avatar',
+    method: RequestMethod.PUT,
+    roles: [UserRole.CUSTOMER],
+    swaggerInfo: {
+      body: {
+        description: 'Avatar file',
+        required: true,
+        schema: {
+          type: 'object',
+          properties: {
+            file: {
+              type: 'string',
+              format: 'binary',
+            },
+          },
+        },
+      },
+      responses: [{ status: HttpStatus.OK }],
+    },
+    extraDecorators: [UseInterceptors(FileInterceptor('file'))],
   },
   getById: <IRouteParams>{
     path: '/:id',

@@ -32,6 +32,7 @@ export interface IRouteParams {
   jwtSecure?: boolean;
   localSecure?: boolean;
   swaggerInfo?: ISwaggerParams;
+  extraDecorators?: Array<ClassDecorator | MethodDecorator | PropertyDecorator>;
 }
 
 function Public(): CustomDecorator<string> {
@@ -49,6 +50,7 @@ export function InjectRoute({
   jwtSecure = true,
   localSecure = false,
   code = HttpStatus.OK,
+  extraDecorators = [],
   method = RequestMethod.GET,
 }: IRouteParams) {
   const methodDecorator = {
@@ -62,6 +64,7 @@ export function InjectRoute({
     methodDecorator[method](path),
     HttpCode(code),
     SwaggerApi({ secure: jwtSecure, ...swaggerInfo }),
+    ...extraDecorators,
   ];
 
   if (roles.length > 0) {
