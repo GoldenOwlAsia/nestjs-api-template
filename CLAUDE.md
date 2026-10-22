@@ -35,6 +35,7 @@ Before calling a change done, run `yarn lint`, `npx tsc --noEmit -p tsconfig.jso
 - **Passwords are hashed in `@BeforeInsert` only.** Update paths must hash explicitly, as `UsersService.update` does.
 - **Login runs in `LocalAuthGuard`, before the ValidationPipe**, so the login body is never validated. passport-local reads only `email` and `password`.
 - **Sessions**: each login creates a `tokens` row whose id is the JWT `sid` claim, and only sha256 digests of the tokens are stored. `JwtStrategy` rejects any token that isn't the session's current access token. Every signed token gets a `jwtid`, because otherwise two tokens issued in the same second would be identical and rotation would fail.
+- **Request logging lives in middleware** (`requestContext` in `src/app/app.middleware.ts`, logging on `res.on('finish')`), not in an interceptor. Guards, the throttler and the router reject requests before any interceptor runs, so an interceptor would miss every 401, 403, 404 and 429. Pass structured fields as the second argument to `Logger.log`; they become their own fields in production JSON logs.
 - **Unit tests** build services with `new` and in-memory fakes (see `auth.service.spec.ts`) rather than a Nest testing module. Keep them DB-free.
 - **Jest needs `--experimental-vm-modules`** to load Nest 12's ESM packages. The `test*` scripts already set it.
 - **Rate limiting** (`@nestjs/throttler`) is skipped when `NODE_ENV=test`. Credential routes allow 5 req/min through `extraDecorators`.

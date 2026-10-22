@@ -16,8 +16,12 @@ import { ValidatorExceptionFilter } from './validator-exception.filter';
 
 function fakeHost() {
   const response = { status: jest.fn().mockReturnThis(), send: jest.fn() };
+  const request = { headers: { 'x-request-id': 'req-123' } };
   const host = {
-    switchToHttp: () => ({ getResponse: () => response }),
+    switchToHttp: () => ({
+      getResponse: () => response,
+      getRequest: () => request,
+    }),
   } as unknown as ArgumentsHost;
 
   return { host, response, body: () => response.send.mock.calls[0][0] };
@@ -82,7 +86,9 @@ describe('AdvancedExceptionFilter', () => {
       status: 500,
       message: 'Something went wrong!',
     });
-    expect(Logger.prototype.error).toHaveBeenCalledWith(error);
+    expect(Logger.prototype.error).toHaveBeenCalledWith(error, {
+      requestId: 'req-123',
+    });
   });
 
   it('exposes message and stack of unknown errors outside production', () => {

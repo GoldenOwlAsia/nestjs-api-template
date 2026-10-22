@@ -4,6 +4,7 @@ import Exception from './exception';
 
 const ROLES_KEY = 'roles';
 const IS_PUBLIC_KEY = 'isPublic';
+const REQUEST_ID_HEADER = 'x-request-id';
 
 const Env = {
   STAGING: 'staging',
@@ -11,4 +12,12 @@ const Env = {
   DEVELOPMENT: 'development',
 };
 
-export { ROLES_KEY, IS_PUBLIC_KEY, Env, Time, Regex, Exception };
+export {
+  ROLES_KEY,
+  IS_PUBLIC_KEY,
+  REQUEST_ID_HEADER,
+  Env,
+  Time,
+  Regex,
+  Exception,
+};

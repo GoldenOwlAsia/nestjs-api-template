@@ -1,10 +1,10 @@
 import { Catch, HttpException, HttpStatus, Logger } from '@nestjs/common';
 
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 
 import { BaseException } from '@/exceptions';
-import { Exception } from '@/utils/constants';
+import { Exception, REQUEST_ID_HEADER } from '@/utils/constants';
 import { isDevelopmentEnv } from '@/utils/helpers';
 
 import type { IBaseExceptionResponse } from '@/exceptions';
@@ -31,7 +31,10 @@ export class AdvancedExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(AdvancedExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost): Response {
-    const body = this.toBody(exception);
+    const requestId = host.switchToHttp().getRequest<Request>()?.headers?.[
+      REQUEST_ID_HEADER
+    ];
+    const body = this.toBody(exception, requestId);
 
     return host
       .switchToHttp()
@@ -40,7 +43,10 @@ export class AdvancedExceptionFilter implements ExceptionFilter {
       .send(body);
   }
 
-  private toBody(exception: unknown): IBaseExceptionResponse {
+  private toBody(
+    exception: unknown,
+    requestId?: string | string[],
+  ): IBaseExceptionResponse {
     if (exception instanceof BaseException) {
       const { code, message } = exception;
 
@@ -63,7 +69,7 @@ export class AdvancedExceptionFilter implements ExceptionFilter {
     }
 
     // Anything else is a bug: always log it, only expose details outside production.
-    this.logger.error(exception);
+    this.logger.error(exception, { requestId });
 
     const body: IBaseExceptionResponse = {
       code: Exception.INTERNAL_ERROR_CODE,

@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { ConsoleLogger } from '@nestjs/common';
 
 import type { INestApplication, LogLevel } from '@nestjs/common';
 
@@ -32,7 +33,14 @@ export const initApplication = async (): Promise<INestApplication> => {
     ? ['error', 'warn', 'log', 'verbose', 'debug']
     : ['error', 'warn', 'log'];
 
-  const app = await NestFactory.create(AppModule, { logger: logLevels });
+  // One JSON object per line in production (for log shippers); readable text elsewhere.
+  const logger = new ConsoleLogger({
+    logLevels,
+    json: !isDevEnv,
+    flattenParams: true,
+  });
+
+  const app = await NestFactory.create(AppModule, { logger });
 
   configureApp(app);
 

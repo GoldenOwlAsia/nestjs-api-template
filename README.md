@@ -89,6 +89,12 @@ Success: `{ "data": ..., "metadata"?: ... }`. Return `{ data, metadata }` from a
 
 Error: `{ "code": 10004, "status": 400, "message": "..." }`. Codes are in `src/utils/constants/exception.ts`. Validation errors return `422`, and outside production they also include a `detail` map of field to messages.
 
+## Health and logs
+
+- `GET /api/v1/health` runs `SELECT 1`. It returns `200 { "data": { "status": "ok", "db": "up" } }`, or `503` when the database is unreachable. It is not rate-limited, and the compose `api` service uses it as its Docker healthcheck.
+- Every response carries an `x-request-id` header. A valid incoming one (up to 128 characters: letters, digits, `_`, `-`) is reused, for example from a proxy; anything else is replaced with a new UUID.
+- Each request is logged once its response is sent, with `requestId`, `method`, `url`, `status` and `durationMs`. When `NODE_ENV=production`, logs are one JSON object per line; otherwise they're readable text.
+
 ## Project layout
 
 ```
@@ -99,7 +105,7 @@ src/
   database/              data source + migrations
   decorators/            InjectController / InjectRoute / ReqUser / validators
   filters/ exceptions/   error formatting
-  interceptors/ pipes/   logging, response wrapping, file validation
+  interceptors/ pipes/   response wrapping, file validation
   utils/                 constants and helpers
 test/                    e2e tests
 ```

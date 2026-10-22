@@ -6,11 +6,11 @@ services:
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - '${DB_PORT:-5432}:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -21,11 +21,25 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 5432
+      PORT: 3000 # the container always listens on 3000; ${PORT} only picks the host port
     ports:
-      - "${PORT:-3000}:3000"
+      - '${PORT:-3000}:3000'
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      # The slim image has no curl; Node's fetch is enough. Fails while the DB is down (503).
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/api/v1/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     command: sh -c "node node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js && node dist/main"
 
 volumes:
