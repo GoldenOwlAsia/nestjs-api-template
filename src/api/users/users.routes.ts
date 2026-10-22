@@ -4,65 +4,55 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { UserRole } from '@/common/enums';
 import { IRouteParams } from '@/decorators';
 
-import {
-  GotCustomerDto,
-  CreatedCustomerDto,
-  UpdatedCustomerDto,
-  GotCustomerDetailDto,
-} from './dto';
+import { UserResponseDto, UserDetailResponseDto } from './dto';
+
+const adminOnly = [UserRole.ADMIN];
 
 export default {
-  index: 'customers',
+  index: 'users',
   create: <IRouteParams>{
     path: '/',
     method: RequestMethod.POST,
-    roles: [UserRole.ADMIN],
+    code: HttpStatus.CREATED,
+    roles: adminOnly,
     swaggerInfo: {
-      responses: [{ status: HttpStatus.OK, type: CreatedCustomerDto }],
+      responses: [{ status: HttpStatus.CREATED, type: UserResponseDto }],
     },
   },
   getAll: <IRouteParams>{
     path: '/',
     method: RequestMethod.GET,
-    roles: [UserRole.ADMIN],
+    roles: adminOnly,
     swaggerInfo: {
       responses: [
-        { status: HttpStatus.OK, type: GotCustomerDto, isArray: true },
+        { status: HttpStatus.OK, type: UserResponseDto, isArray: true },
       ],
     },
   },
   getMe: <IRouteParams>{
     path: '/me',
     method: RequestMethod.GET,
-    roles: [UserRole.CUSTOMER],
     swaggerInfo: {
-      responses: [{ status: HttpStatus.OK, type: GotCustomerDetailDto }],
+      responses: [{ status: HttpStatus.OK, type: UserDetailResponseDto }],
     },
   },
   updateMe: <IRouteParams>{
     path: '/me',
     method: RequestMethod.PUT,
-    roles: [UserRole.CUSTOMER],
     swaggerInfo: {
-      responses: [{ status: HttpStatus.OK, type: UpdatedCustomerDto }],
+      responses: [{ status: HttpStatus.OK, type: UserResponseDto }],
     },
   },
   updateAvatar: <IRouteParams>{
     path: '/me/avatar',
     method: RequestMethod.PUT,
-    roles: [UserRole.CUSTOMER],
     swaggerInfo: {
       body: {
         description: 'Avatar file',
         required: true,
         schema: {
           type: 'object',
-          properties: {
-            file: {
-              type: 'string',
-              format: 'binary',
-            },
-          },
+          properties: { file: { type: 'string', format: 'binary' } },
         },
       },
       responses: [{ status: HttpStatus.OK }],
@@ -72,23 +62,23 @@ export default {
   getById: <IRouteParams>{
     path: '/:id',
     method: RequestMethod.GET,
-    roles: [UserRole.ADMIN],
+    roles: adminOnly,
     swaggerInfo: {
-      responses: [{ status: HttpStatus.OK, type: GotCustomerDetailDto }],
+      responses: [{ status: HttpStatus.OK, type: UserDetailResponseDto }],
     },
   },
   updateById: <IRouteParams>{
     path: '/:id',
     method: RequestMethod.PUT,
-    roles: [UserRole.ADMIN],
+    roles: adminOnly,
     swaggerInfo: {
-      responses: [{ status: HttpStatus.OK, type: UpdatedCustomerDto }],
+      responses: [{ status: HttpStatus.OK, type: UserResponseDto }],
     },
   },
   deleteById: <IRouteParams>{
     path: '/:id',
     method: RequestMethod.DELETE,
-    roles: [UserRole.ADMIN],
+    roles: adminOnly,
     swaggerInfo: {
       responses: [
         {

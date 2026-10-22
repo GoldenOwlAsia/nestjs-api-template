@@ -8,20 +8,24 @@ import { AuthService } from './auth.service';
 
 import { RefreshTokenDto, RegisterDto } from './dto';
 
-import type { LoggedInDto, RegisteredDto, TokensDto } from './dto';
-import type { IJwtStrategy, ILocalStrategy } from './strategies';
+import type { LoggedInDto, TokensDto } from './dto';
+import type { IJwtStrategy } from './strategies';
+import type { User } from '@/api/users/entities';
+import type { UserResponseDto } from '@/api/users/dto';
 
 @InjectController({ name: authRoutes.index, isCore: true })
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @InjectRoute(authRoutes.register)
-  public async register(@Body() userInfo: RegisterDto): Promise<RegisteredDto> {
+  public async register(
+    @Body() userInfo: RegisterDto,
+  ): Promise<UserResponseDto> {
     return this.authService.register(userInfo);
   }
 
   @InjectRoute(authRoutes.login)
-  public async login(@ReqUser() user: ILocalStrategy): Promise<LoggedInDto> {
+  public async login(@ReqUser() user: User): Promise<LoggedInDto> {
     return this.authService.login(user);
   }
 

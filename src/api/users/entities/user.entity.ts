@@ -1,15 +1,14 @@
 import { Exclude } from 'class-transformer';
+import { BeforeInsert, Column, Entity } from 'typeorm';
 
-import { Column, Entity, BeforeInsert, BeforeUpdate } from 'typeorm';
-
-import { entity, hash } from '@/utils/helpers';
+import { hash } from '@/utils/helpers';
 import { Gender, UserRole } from '@/common/enums';
 import { Base as BaseEntity } from '@/common/entities';
 
 import type { Token } from '@/api/token/entities';
 
-@Entity({ name: 'admins' })
-export class Admin extends BaseEntity {
+@Entity({ name: 'users' })
+export class User extends BaseEntity {
   @Column({ unique: true })
   email: string;
 
@@ -29,6 +28,7 @@ export class Admin extends BaseEntity {
   @Column({
     type: 'enum',
     enum: Gender,
+    enumName: 'user_gender_enum',
     nullable: true,
   })
   gender?: Gender;
@@ -36,33 +36,21 @@ export class Admin extends BaseEntity {
   @Column({ name: 'phone_number', unique: true })
   phoneNumber: string;
 
-  private parseGenderBeforeAction(): void {
-    if (this.gender) {
-      const plainGender = this.gender ?? Gender[Gender.MALE];
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    enumName: 'user_role_enum',
+    default: UserRole.CUSTOMER,
+  })
+  role: UserRole;
 
-      if (
-        entity.isValidFieldBeforeParse({ data: Gender, value: plainGender })
-      ) {
-        this.gender = Number(Gender?.[plainGender]);
-      }
-    }
-  }
-
+  // Insert only: update paths hash explicitly (UsersService.update).
   @BeforeInsert()
-  private async setInsertingData(): Promise<void> {
-    const saltRounds = 10;
-
+  private async hashPassword(): Promise<void> {
     this.password = await hash.generateWithBcrypt({
       source: this.password,
-      salt: saltRounds,
+      salt: 10,
     });
-
-    this.parseGenderBeforeAction();
-  }
-
-  @BeforeUpdate()
-  private async setUpdatingData(): Promise<void> {
-    this.parseGenderBeforeAction();
   }
 
   public fullName(): string {
@@ -73,17 +61,10 @@ export class Admin extends BaseEntity {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...rest } = this;
 
-    return {
-      ...rest,
-      role: UserRole[UserRole.ADMIN],
-      gender: Gender[this.gender] ?? null,
-    };
+    return rest;
   }
 
   public toResponseHavingSessions(sessions: Token[]) {
-    return {
-      ...this.toResponse(),
-      sessions,
-    };
+    return { ...this.toResponse(), sessions };
   }
 }

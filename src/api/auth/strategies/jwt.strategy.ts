@@ -7,14 +7,14 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { AuthService } from '@/api/auth/auth.service';
 
 import type { UserRole } from '@/common/enums';
-import type { TUser } from '@/api/auth/auth.service';
-
+import type { User } from '@/api/users/entities';
 import type { ITokenPayload } from '@/api/auth/auth.interface';
 
+/** What `@ReqUser()` returns on JWT-protected routes. */
 export interface IJwtStrategy {
   sid: string;
-  element: TUser;
   role: UserRole;
+  element: User;
 }
 
 const extractToken = ExtractJwt.fromAuthHeaderAsBearerToken();
@@ -33,14 +33,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(
-    req: Request,
-    { sid, email, role }: ITokenPayload,
-  ): Promise<IJwtStrategy> {
-    await this.authService.validateSession(sid, extractToken(req));
-
-    const user = await this.authService.validateJwtUser({ email, role });
-
-    return { sid, role, element: user };
+  async validate(req: Request, { sid }: ITokenPayload): Promise<IJwtStrategy> {
+    return this.authService.authenticate(sid, extractToken(req));
   }
 }

@@ -1,12 +1,12 @@
 enum Gender {
-  MALE = 0,
-  FEMALE = 1,
-  OTHER = 2,
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+  OTHER = 'OTHER',
 }
 
 enum UserRole {
-  CUSTOMER = 0,
-  ADMIN = 1,
+  CUSTOMER = 'CUSTOMER',
+  ADMIN = 'ADMIN',
 }
 
 export { Gender, UserRole };

@@ -10,9 +10,8 @@ import { AppController } from './app.controller';
 
 import { AuthModule } from '@/api/auth/auth.module';
 import { TokenModule } from '@/api/token/token.module';
-import { AdminModule } from '@/api/admin/admin.module';
 import { DatabaseModule } from '@/database/database.module';
-import { CustomerModule } from '@/api/customer/customer.module';
+import { UsersModule } from '@/api/users/users.module';
 
 const EnvSchema = Joi.object({
   PORT: Joi.number(),
@@ -41,8 +40,7 @@ const EnvSchema = Joi.object({
     }),
     AuthModule,
     TokenModule,
-    AdminModule,
-    CustomerModule,
+    UsersModule,
     DatabaseModule,
   ],
   controllers: [AppController],

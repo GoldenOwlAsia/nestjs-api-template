@@ -6,7 +6,7 @@ import type { ConfigService } from '@nestjs/config';
 
 import { hash } from '@/utils/helpers';
 import { UserRole } from '@/common/enums';
-import { Customer } from '@/api/customer/entities';
+import { User } from '@/api/users/entities';
 import { TokenService } from '@/api/token/token.service';
 
 import { AuthService } from './auth.service';
@@ -38,19 +38,24 @@ describe('AuthService', () => {
     'token.refresh.lifetime': 60_000,
   };
 
-  let user: Customer;
+  let user: User;
   let tokens: ReturnType<typeof fakeTokenRepository>;
   let jwtService: JwtService;
-  let customerService: { findOneByEmail: jest.Mock; create: jest.Mock };
+  let usersService: {
+    findOneByEmail: jest.Mock;
+    findOneById: jest.Mock;
+    create: jest.Mock;
+  };
   let service: AuthService;
 
   beforeEach(() => {
-    user = Object.assign(new Customer(), {
+    user = Object.assign(new User(), {
       id: 'c0ffee00-0000-4000-8000-000000000001',
       email: 'alice@example.com',
       password: hashSync(PASSWORD, 4),
       firstName: 'Alice',
       lastName: 'Nguyen',
+      role: UserRole.CUSTOMER,
     });
 
     tokens = fakeTokenRepository();
@@ -58,34 +63,47 @@ describe('AuthService', () => {
       secret: 'access-secret',
       signOptions: { expiresIn: 60 },
     });
-    customerService = {
+    usersService = {
       findOneByEmail: jest.fn(async (email: string) =>
         email === user.email ? user : null,
       ),
-      create: jest.fn(),
+      findOneById: jest.fn(async (id: string) =>
+        id === user.id ? user : null,
+      ),
+      create: jest.fn(async (data) => data),
     };
 
     service = new AuthService(
       jwtService,
-      { findOneByEmail: jest.fn(async () => null) } as any,
+      usersService as any,
       new TokenService(tokens as any),
       { get: (key: string) => config[key] } as unknown as ConfigService,
-      customerService as any,
     );
   });
 
-  const login = () =>
-    service.login({ element: user, role: 'CUSTOMER' as unknown as UserRole });
+  const sidOf = (token: string) => jwtService.decode<ITokenPayload>(token).sid;
+
+  it('register always creates a CUSTOMER', async () => {
+    await service.register({
+      email: 'bob@example.com',
+      password: PASSWORD,
+      firstName: 'Bob',
+      lastName: 'Le',
+      phoneNumber: '0911111111',
+      // A smuggled role must not survive (the DTO also strips it).
+      ...({ role: UserRole.ADMIN } as object),
+    });
+
+    expect(usersService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ role: UserRole.CUSTOMER }),
+    );
+  });
 
   describe('validateUser', () => {
     it('returns the user for the right password', async () => {
-      await expect(
-        service.validateUser({
-          email: user.email,
-          password: PASSWORD,
-          role: 'CUSTOMER' as any,
-        }),
-      ).resolves.toBe(user);
+      await expect(service.validateUser(user.email, PASSWORD)).resolves.toBe(
+        user,
+      );
     });
 
     it('rejects a wrong password or unknown email', async () => {
@@ -94,41 +112,17 @@ describe('AuthService', () => {
         ['nobody@example.com', PASSWORD],
       ]) {
         await expect(
-          service.validateUser({ email, password, role: 'CUSTOMER' as any }),
+          service.validateUser(email, password),
         ).rejects.toBeInstanceOf(WrongCredentialsException);
       }
     });
-
-    it('rejects an unknown role without querying any service', async () => {
-      for (const role of ['customer', 'ROOT', undefined]) {
-        await expect(
-          service.validateUser({
-            email: user.email,
-            password: PASSWORD,
-            role: role as any,
-          }),
-        ).rejects.toBeInstanceOf(WrongCredentialsException);
-      }
-
-      expect(customerService.findOneByEmail).not.toHaveBeenCalled();
-    });
-  });
-
-  it('validateJwtUser rejects a user that no longer exists with 401', async () => {
-    await expect(
-      service.validateJwtUser({
-        email: 'gone@example.com',
-        role: 'CUSTOMER' as any,
-      }),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   describe('login', () => {
     it('creates a session keyed by the sid claim and stores only digests', async () => {
-      const { accessToken, refreshToken, userInfo } = await login();
+      const { accessToken, refreshToken, userInfo } = await service.login(user);
 
-      const { sid } = jwtService.decode<ITokenPayload>(accessToken);
-      const row = tokens.rows.get(sid);
+      const row = tokens.rows.get(sidOf(accessToken));
 
       expect(row).toMatchObject({
         userId: user.id,
@@ -139,8 +133,17 @@ describe('AuthService', () => {
       expect(userInfo).not.toHaveProperty('password');
     });
 
+    it('puts only the session id in the token, not the email or role', async () => {
+      const { accessToken } = await service.login(user);
+      const payload = jwtService.decode<Record<string, unknown>>(accessToken);
+
+      expect(payload).toHaveProperty('sid');
+      expect(payload).not.toHaveProperty('email');
+      expect(payload).not.toHaveProperty('role');
+    });
+
     it('signs the refresh token with the refresh secret only', async () => {
-      const { refreshToken } = await login();
+      const { refreshToken } = await service.login(user);
 
       expect(() => jwtService.verify(refreshToken)).toThrow();
       expect(() =>
@@ -149,54 +152,76 @@ describe('AuthService', () => {
     });
   });
 
-  describe('validateSession', () => {
-    it('accepts the current access token of an existing session', async () => {
-      const { accessToken } = await login();
-      const { sid } = jwtService.decode<ITokenPayload>(accessToken);
+  describe('authenticate', () => {
+    it('resolves the current access token to its session and user', async () => {
+      const { accessToken } = await service.login(user);
+      const sid = sidOf(accessToken);
 
-      await expect(
-        service.validateSession(sid, accessToken),
-      ).resolves.toBeUndefined();
+      await expect(service.authenticate(sid, accessToken)).resolves.toEqual({
+        sid,
+        role: UserRole.CUSTOMER,
+        element: user,
+      });
+    });
+
+    it('takes the role from the user row, so a role change applies at once', async () => {
+      const { accessToken } = await service.login(user);
+      user.role = UserRole.ADMIN;
+
+      const { role } = await service.authenticate(
+        sidOf(accessToken),
+        accessToken,
+      );
+
+      expect(role).toBe(UserRole.ADMIN);
     });
 
     it('rejects a missing sid, an unknown session or a foreign token', async () => {
-      const { accessToken } = await login();
-      const { sid } = jwtService.decode<ITokenPayload>(accessToken);
-      const other = await login();
+      const { accessToken } = await service.login(user);
+      const other = await service.login(user);
 
-      for (const [s, token] of [
+      for (const [sid, token] of [
         [undefined, accessToken],
         ['00000000-0000-4000-8000-000000000000', accessToken],
-        [sid, other.accessToken],
+        [sidOf(accessToken), other.accessToken],
       ]) {
-        await expect(service.validateSession(s, token)).rejects.toBeInstanceOf(
+        await expect(service.authenticate(sid, token)).rejects.toBeInstanceOf(
           UnauthorizedException,
         );
       }
+    });
+
+    it('rejects a session whose user no longer exists', async () => {
+      const { accessToken } = await service.login(user);
+      usersService.findOneById.mockResolvedValueOnce(null);
+
+      await expect(
+        service.authenticate(sidOf(accessToken), accessToken),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
 
   describe('refresh', () => {
     it('rotates both tokens and invalidates the previous access token', async () => {
-      const first = await login();
-      const { sid } = jwtService.decode<ITokenPayload>(first.accessToken);
+      const first = await service.login(user);
+      const sid = sidOf(first.accessToken);
 
       const next = await service.refresh(first.refreshToken);
 
       expect(next.accessToken).not.toBe(first.accessToken);
       expect(next.refreshToken).not.toBe(first.refreshToken);
-      expect(jwtService.decode<ITokenPayload>(next.accessToken).sid).toBe(sid);
+      expect(sidOf(next.accessToken)).toBe(sid);
       await expect(
-        service.validateSession(sid, next.accessToken),
-      ).resolves.toBeUndefined();
+        service.authenticate(sid, next.accessToken),
+      ).resolves.toBeDefined();
       await expect(
-        service.validateSession(sid, first.accessToken),
+        service.authenticate(sid, first.accessToken),
       ).rejects.toThrow(UnauthorizedException);
     });
 
     it('revokes the whole session when a rotated refresh token is reused', async () => {
-      const first = await login();
-      const { sid } = jwtService.decode<ITokenPayload>(first.accessToken);
+      const first = await service.login(user);
+      const sid = sidOf(first.accessToken);
       const next = await service.refresh(first.refreshToken);
 
       await expect(service.refresh(first.refreshToken)).rejects.toBeInstanceOf(
@@ -209,8 +234,7 @@ describe('AuthService', () => {
     });
 
     it('rejects garbage, access tokens and tokens of a deleted session', async () => {
-      const { accessToken, refreshToken } = await login();
-      const { sid } = jwtService.decode<ITokenPayload>(accessToken);
+      const { accessToken, refreshToken } = await service.login(user);
 
       await expect(service.refresh('not-a-jwt')).rejects.toThrow(
         UnauthorizedException,
@@ -219,7 +243,7 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
 
-      tokens.rows.delete(sid);
+      tokens.rows.delete(sidOf(accessToken));
       await expect(service.refresh(refreshToken)).rejects.toThrow(
         UnauthorizedException,
       );
@@ -227,13 +251,13 @@ describe('AuthService', () => {
   });
 
   it('logout deletes the session so its access token stops working', async () => {
-    const { accessToken } = await login();
-    const { sid } = jwtService.decode<ITokenPayload>(accessToken);
+    const { accessToken } = await service.login(user);
+    const sid = sidOf(accessToken);
 
-    await service.logout({ sid, element: user, role: UserRole.CUSTOMER });
+    await service.logout({ sid, element: user, role: user.role });
 
     expect(tokens.rows.has(sid)).toBe(false);
-    await expect(service.validateSession(sid, accessToken)).rejects.toThrow(
+    await expect(service.authenticate(sid, accessToken)).rejects.toThrow(
       UnauthorizedException,
     );
   });

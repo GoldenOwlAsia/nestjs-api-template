@@ -6,8 +6,6 @@ import { hash } from '@/utils/helpers';
 import { Token } from './entities';
 import { TokenRepository } from './token.repository';
 
-import type { UserRole } from '@/common/enums';
-
 import type { CreateTokenDto } from './dto/create-token.dto';
 
 type TTokenPair = Pick<CreateTokenDto, 'accessToken' | 'refreshToken'>;
@@ -48,18 +46,7 @@ export class TokenService {
     await this.tokenRepository.delete({ id });
   }
 
-  public async getAllByUser({
-    id,
-    role,
-  }: {
-    id: string;
-    role: UserRole;
-  }): Promise<Token[]> {
-    const sessions = await this.tokenRepository.findBy({
-      userId: id,
-      userRole: role,
-    });
-
-    return sessions;
+  public async getAllByUser(userId: string): Promise<Token[]> {
+    return this.tokenRepository.findBy({ userId });
   }
 }

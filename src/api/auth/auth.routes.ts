@@ -5,7 +5,9 @@ import { Time } from '@/utils/constants';
 
 import type { IRouteParams } from '@/decorators';
 
-import { LogInDto, LoggedInDto, RegisteredDto, TokensDto } from './dto';
+import { UserResponseDto } from '@/api/users/dto';
+
+import { LogInDto, LoggedInDto, TokensDto } from './dto';
 
 /** Brute-force protection for credential endpoints: 5 requests / minute per IP. */
 const strictThrottle = Throttle({
@@ -21,7 +23,7 @@ export default {
     method: RequestMethod.POST,
     extraDecorators: [strictThrottle],
     swaggerInfo: {
-      responses: [{ status: HttpStatus.CREATED, type: RegisteredDto }],
+      responses: [{ status: HttpStatus.CREATED, type: UserResponseDto }],
     },
   },
   login: <IRouteParams>{

@@ -61,7 +61,7 @@ Env vars are validated at boot (`src/app/app.module.ts`). App settings such as t
 | Endpoint | Auth | |
 | --- | --- | --- |
 | `POST /register` | public | Creates a `CUSTOMER` |
-| `POST /login` | public | `{ role, email, password }` returns `{ accessToken, refreshToken, userInfo }` |
+| `POST /login` | public | `{ email, password }` returns `{ accessToken, refreshToken, userInfo }` |
 | `POST /refresh` | public | `{ refreshToken }` returns a new token pair |
 | `POST /logout` | bearer | Revokes the current session |
 
@@ -70,6 +70,18 @@ Env vars are validated at boot (`src/app/app.module.ts`). App settings such as t
 - Refresh **rotates** both tokens. If someone presents an already-rotated refresh token, the whole session is revoked (reuse detection).
 - Default lifetimes: access 15 min (1 day in development), refresh 30 days.
 - Credential endpoints are rate-limited to 5 req/min per IP, everything else to 100 req/min (`@nestjs/throttler`).
+
+## Users
+
+There is one `users` table, and each row has a `role` of `CUSTOMER` or `ADMIN`.
+
+| Endpoint | Who | |
+| --- | --- | --- |
+| `GET /users/me`, `PUT /users/me`, `PUT /users/me/avatar` | any signed-in user | Own profile. Email and role can't be changed. |
+| `GET /users`, `POST /users` | admin | List users; create a user of any role |
+| `GET /users/:id`, `PUT /users/:id`, `DELETE /users/:id` | admin | Admins can manage customers and themselves, but not other admins (403). |
+
+Registration always creates a `CUSTOMER`. There is no public way to create the first admin. Insert one into the database, or call `UsersService.create({ ..., role: UserRole.ADMIN })` from a script.
 
 ## Response shape
 
@@ -97,21 +109,21 @@ test/                    e2e tests
 Routes are declared as data in `<module>.routes.ts` and applied with `@InjectRoute`. Every route requires a JWT unless it sets `jwtSecure: false`.
 
 ```ts
-// customer.routes.ts
+// users.routes.ts
 getById: <IRouteParams>{
   path: '/:id',
   method: RequestMethod.GET,
   roles: [UserRole.ADMIN],               // optional role check
-  extraDecorators: [UseGuards(SelfGuard)], // any extra decorators
-  swaggerInfo: { responses: [{ status: HttpStatus.OK, type: GotCustomerDetailDto }] },
+  extraDecorators: [],                   // any extra decorators (guards, interceptors)
+  swaggerInfo: { responses: [{ status: HttpStatus.OK, type: UserDetailResponseDto }] },
 },
 
-// customer.controller.ts
-@InjectRoute(customerRoutes.getById)
+// users.controller.ts
+@InjectRoute(usersRoutes.getById)
 getById(@Param('id', ParseUUIDPipe) id: string) { ... }
 ```
 
-Use `@ReqUser()` to get the authenticated `{ sid, role, element }`, where `element` is the user entity.
+Use `@ReqUser()` to get the authenticated `{ sid, role, element }`, where `element` is the `User` entity and `role` is read from the database on every request.
 
 ## License
 

@@ -6,53 +6,29 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 
 import { hash } from '@/utils/helpers';
 import { UserRole } from '@/common/enums';
-import { AdminService } from '@/api/admin/admin.service';
 import { TokenService } from '@/api/token/token.service';
-import { CustomerService } from '@/api/customer/customer.service';
+import { UsersService } from '@/api/users/users.service';
 
-import type { Admin } from '@/api/admin/entities';
-import type { Customer } from '@/api/customer/entities';
+import type { User } from '@/api/users/entities';
+import type { UserResponseDto } from '@/api/users/dto';
 
 import { WrongCredentialsException } from './auth.exceptions';
 
-import type { TokensDto, RegisterDto, LoggedInDto, RegisteredDto } from './dto';
-import type {
-  ITokenPayload,
-  IValidateUserParams,
-  IValidateJwtUserParams,
-} from './auth.interface';
-import type { IJwtStrategy, ILocalStrategy } from './strategies';
-
-export type TUser = Admin | Customer;
+import type { TokensDto, RegisterDto, LoggedInDto } from './dto';
+import type { ITokenPayload } from './auth.interface';
+import type { IJwtStrategy } from './strategies';
 
 @Injectable()
 export class AuthService {
   constructor(
     private jwtService: JwtService,
-    private adminService: AdminService,
+    private usersService: UsersService,
     private tokenService: TokenService,
     private configService: ConfigService,
-    private customerService: CustomerService,
   ) {}
 
-  /** Throws instead of returning `undefined` so an unknown role can never reach a lookup. */
-  private getUserService(role: UserRole | string) {
-    const services = {
-      [UserRole[UserRole.ADMIN]]: this.adminService,
-      [UserRole[UserRole.CUSTOMER]]: this.customerService,
-    };
-
-    const userService = services[role];
-
-    if (!userService) {
-      throw new WrongCredentialsException();
-    }
-
-    return userService;
-  }
-
-  private signTokens({ sid, email, role }: ITokenPayload): TokensDto {
-    const payload: ITokenPayload = { sid, email, role };
+  private signTokens(sid: string): TokensDto {
+    const payload: ITokenPayload = { sid };
 
     // `jwtid` makes every token unique, so a rotated token never equals the previous one
     // (same payload + same second would otherwise sign to the identical string).
@@ -66,23 +42,17 @@ export class AuthService {
     };
   }
 
-  public async register(userInfo: RegisterDto): Promise<RegisteredDto> {
-    // RegisterDto only allows CUSTOMER; create() rejects duplicates.
-    return this.customerService.create(userInfo);
+  public async register(userInfo: RegisterDto): Promise<UserResponseDto> {
+    return this.usersService.create({ ...userInfo, role: UserRole.CUSTOMER });
   }
 
-  public async login({ element, role }: ILocalStrategy): Promise<LoggedInDto> {
+  public async login(user: User): Promise<LoggedInDto> {
     const sid = randomUUID();
-    const tokens = this.signTokens({ sid, email: element.email, role });
+    const tokens = this.signTokens(sid);
 
-    await this.tokenService.create({
-      id: sid,
-      userId: element.id,
-      userRole: role,
-      ...tokens,
-    });
+    await this.tokenService.create({ id: sid, userId: user.id, ...tokens });
 
-    return { ...tokens, userInfo: element.toResponse() };
+    return { ...tokens, userInfo: user.toResponse() };
   }
 
   public async refresh(refreshToken: string): Promise<TokensDto> {
@@ -110,7 +80,7 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
-    const tokens = this.signTokens(payload);
+    const tokens = this.signTokens(session.id);
 
     await this.tokenService.rotate(session.id, tokens);
 
@@ -121,40 +91,35 @@ export class AuthService {
     await this.tokenService.deleteById(sid);
   }
 
-  /** Throws unless the session exists and `accessToken` is its current access token. */
-  public async validateSession(
+  /**
+   * Resolves a bearer token to its session and user. Throws unless the session
+   * exists and `accessToken` is its current access token. The role comes from
+   * the user row, so a role change applies to existing sessions immediately.
+   */
+  public async authenticate(
     sid: string,
     accessToken: string,
-  ): Promise<void> {
+  ): Promise<IJwtStrategy> {
     const session = sid ? await this.tokenService.findById(sid) : null;
 
     if (session?.accessToken !== hash.sha256(accessToken)) {
       throw new UnauthorizedException();
     }
-  }
 
-  public async validateUser({
-    email,
-    role,
-    password,
-  }: IValidateUserParams): Promise<TUser> {
-    const user = await this.getUserService(role).findOneByEmail(email);
-
-    if (!(user && compareSync(password, user.password))) {
-      throw new WrongCredentialsException();
-    }
-
-    return user;
-  }
-
-  public async validateJwtUser({
-    email,
-    role,
-  }: IValidateJwtUserParams): Promise<TUser> {
-    const user = await this.getUserService(role).findOneByEmail(email);
+    const user = await this.usersService.findOneById(session.userId);
 
     if (!user) {
       throw new UnauthorizedException();
+    }
+
+    return { sid, role: user.role, element: user };
+  }
+
+  public async validateUser(email: string, password: string): Promise<User> {
+    const user = await this.usersService.findOneByEmail(email);
+
+    if (!(user && compareSync(password, user.password))) {
+      throw new WrongCredentialsException();
     }
 
     return user;

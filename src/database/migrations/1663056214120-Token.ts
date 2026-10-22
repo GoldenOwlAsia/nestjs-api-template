@@ -1,7 +1,5 @@
+// Frozen: migrations must not import app code, which changes over time.
 import { Table, QueryRunner, MigrationInterface } from 'typeorm';
-
-import { enumh } from '@/utils/helpers';
-import { UserRole } from '@/common/enums';
 
 export class Token1663056214120 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -25,7 +23,7 @@ export class Token1663056214120 implements MigrationInterface {
           {
             name: 'user_role',
             type: 'enum',
-            enum: enumh.getValuesAndToString<typeof UserRole>(UserRole),
+            enum: ['0', '1'],
             enumName: 'customer_user_role_enum',
             default: `'0'::customer_user_role_enum`,
           },
