@@ -1,18 +1,11 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 
-import { AdminService } from '@/api/admin/admin.service';
-
+/** Allows the request only when `:id` is the authenticated user's own id. */
 @Injectable()
 export class SelfGuard implements CanActivate {
-  constructor(private adminService: AdminService) {}
+  canActivate(context: ExecutionContext): boolean {
+    const { user, params } = context.switchToHttp().getRequest();
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const user = request.user;
-    const params = request.params;
-
-    const userAccount = await this.adminService.findOneByEmail(user?.email);
-
-    return userAccount && userAccount.id === params.id;
+    return !!user?.element?.id && user.element.id === params.id;
   }
 }

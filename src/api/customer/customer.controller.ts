@@ -1,6 +1,6 @@
-import { Body, Param, UploadedFile } from '@nestjs/common';
+import { Body, Param, ParseUUIDPipe, UploadedFile } from '@nestjs/common';
 
-import { IJwtStrategy } from '@/api/auth/strategies';
+import type { IJwtStrategy } from '@/api/auth/strategies';
 import { InjectController, InjectRoute, ReqUser } from '@/decorators';
 import { FileValidatorPipe } from '@/pipes';
 
@@ -37,8 +37,12 @@ export class CustomerController {
   }
 
   @InjectRoute(customerRoutes.getMe)
-  public async getMe(@ReqUser() user: Customer): Promise<GotCustomerDetailDto> {
-    const gotCustomer = await this.customerService.getDetailById(user?.id);
+  public async getMe(
+    @ReqUser() user: IJwtStrategy,
+  ): Promise<GotCustomerDetailDto> {
+    const gotCustomer = await this.customerService.getDetailById(
+      user.element.id,
+    );
 
     return gotCustomer;
   }
@@ -77,7 +81,9 @@ export class CustomerController {
   }
 
   @InjectRoute(customerRoutes.getById)
-  public async getById(@Param('id') id: string): Promise<GotCustomerDetailDto> {
+  public async getById(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<GotCustomerDetailDto> {
     const gotCustomer = await this.customerService.getDetailById(id);
 
     return gotCustomer;
@@ -85,7 +91,7 @@ export class CustomerController {
 
   @InjectRoute(customerRoutes.updateById)
   public async updateById(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() data: UpdateCustomerDto,
   ): Promise<GotCustomerDto> {
     const updatedCustomer = await this.customerService.updateById({
@@ -97,7 +103,9 @@ export class CustomerController {
   }
 
   @InjectRoute(customerRoutes.deleteById)
-  public async deleteById(@Param('id') id: string): Promise<string> {
+  public async deleteById(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<string> {
     await this.customerService.deleteById(id);
 
     return id;

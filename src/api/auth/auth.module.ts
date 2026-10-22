@@ -1,7 +1,7 @@
 import { JwtModule } from '@nestjs/jwt';
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { AdminModule } from '@/api/admin/admin.module';
 import { TokenModule } from '@/api/token/token.module';
@@ -15,16 +15,15 @@ import { JwtStrategy, LocalStrategy } from './strategies';
   imports: [
     AdminModule,
     TokenModule,
-    ConfigModule,
     PassportModule,
     CustomerModule,
     JwtModule.registerAsync({
-      imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get('jwt.secret'),
         signOptions: {
-          expiresIn: configService.get('token.authentication.lifetime') / 1000, // default unit of jwtOptions:expiresIn  is second, so we must divide 1000 (ms)
+          // jsonwebtoken expects seconds; config stores milliseconds.
+          expiresIn: configService.get('token.access.lifetime') / 1000,
         },
       }),
     }),

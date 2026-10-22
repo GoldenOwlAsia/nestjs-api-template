@@ -1,55 +1,19 @@
 import { Time } from '@/utils/constants';
 
-export const config = {
-  db: {
-    type: process.env.DB_TYPE || 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
-
-    username: process.env.DB_USERNAME || 'username',
-    password: process.env.DB_PASSWORD || 'password',
-    database: process.env.DB_NAME || 'dbname',
-
-    entities: [`${__dirname}/../../api/**/*.entity.{js,ts}`],
-
-    logging: false,
-    synchronize: false,
-    autoLoadEntities: true,
-  },
+/** A function so `process.env` is read when ConfigModule loads, after `.env` is parsed. */
+export const config = () => ({
   jwt: {
     secret: process.env.JWT_SECRET,
     refreshSecret: process.env.JWT_REFRESH_SECRET,
   },
-  code: {
-    resetPassword: {
-      lifetime: 5 * Time.ONE_MINUTE,
-    },
-  },
-  email: {
-    transport: {
-      service: 'gmail',
-      host: 'smtp.gmail.com',
-      auth: {
-        user: process.env.MAIL_USERNAME || 'username',
-        pass: process.env.MAIL_PASSWORD || 'password',
-      },
-    },
-    options: {
-      from: `"Basic NestJS Template" <${process.env.MAIL_USERNAME}>`,
-    },
+  token: {
+    access: { lifetime: 15 * Time.ONE_MINUTE },
+    refresh: { lifetime: 30 * Time.ONE_DAY },
   },
   swagger: {
-    siteTitle: 'Basic NestJS Template | Documentation',
-    title: 'Basic NestJS Template | Documentation',
-    description: 'The Basic NestJS Template API Documentation',
+    siteTitle: 'NestJS API Template | Documentation',
+    title: 'NestJS API Template | Documentation',
+    description: 'The NestJS API Template API Documentation',
     version: '1.0',
-    bearerAuth: {
-      type: 'http',
-      in: 'Header',
-      scheme: 'Bearer',
-      bearerFormat: 'Bearer',
-      name: 'Authorization',
-      description: 'Please enter JWT token',
-    },
   },
-};
+});

@@ -1,15 +1,32 @@
-version: "3.8"
 services:
-  postgres:
-    container_name: basic-nestjs-template
-    image: postgres:latest
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5432:5432"
-    env_file:
-      - docker.env
-    networks:
-      - postgres
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-networks:
-    postgres:
-        external: true
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh -c "node node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js && node dist/main"
+
+volumes:
+  pgdata:

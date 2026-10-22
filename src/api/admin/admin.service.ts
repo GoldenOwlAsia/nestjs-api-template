@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import type { DeleteResult } from 'typeorm';
+import type { FindOptionsWhere } from 'typeorm';
+
+import { hash } from '@/utils/helpers';
 
 import { UserAlreadyException } from '@/api/auth/auth.exceptions';
 
@@ -34,14 +36,14 @@ export class AdminService {
       throw new UserAlreadyException();
     }
 
-    const createdAdmin = await this.adminRepository.create(data);
+    const createdAdmin = this.adminRepository.create(data);
 
     await this.adminRepository.save(createdAdmin);
 
     return createdAdmin.toResponse();
   }
 
-  public async findOneByEmail(email: string): Promise<Admin> {
+  public async findOneByEmail(email: string): Promise<Admin | null> {
     return this.adminRepository.findOneBy({ email });
   }
 
@@ -51,8 +53,24 @@ export class AdminService {
   }: {
     email?: string;
     phoneNumber: string;
-  }): Promise<Admin> {
-    return this.adminRepository.findOneBy([{ email }, { phoneNumber }]);
+  }): Promise<Admin | null> {
+    const where: FindOptionsWhere<Admin>[] = [{ phoneNumber }];
+
+    if (email) {
+      where.push({ email });
+    }
+
+    return this.adminRepository.findOneBy(where);
+  }
+
+  private async findByIdOrFail(id: string): Promise<Admin> {
+    const admin = await this.adminRepository.findOneBy({ id });
+
+    if (!admin) {
+      throw new NotFoundException();
+    }
+
+    return admin;
   }
 
   public async getAll(): Promise<GotAdminDto[]> {
@@ -62,7 +80,7 @@ export class AdminService {
   }
 
   public async getDetailById(id: string): Promise<GotAdminDetailDto> {
-    const admin = await this.adminRepository.findOneBy({ id });
+    const admin = await this.findByIdOrFail(id);
 
     return admin.toResponse();
   }
@@ -86,9 +104,15 @@ export class AdminService {
       }
     }
 
-    const updatedAdmin = await this.adminRepository.create({
+    // @BeforeInsert hashes on create only; updates must hash here.
+    const password = data.password
+      ? await hash.generateWithBcrypt({ source: data.password, salt: 10 })
+      : admin.password;
+
+    const updatedAdmin = this.adminRepository.create({
       ...admin,
       ...data,
+      password,
     });
 
     await this.adminRepository.save(updatedAdmin);
@@ -103,7 +127,7 @@ export class AdminService {
     id: string;
     data: UpdateAdminDto;
   }): Promise<GotAdminDto> {
-    const admin = await this.adminRepository.findOneBy({ id });
+    const admin = await this.findByIdOrFail(id);
 
     const updatedAdmin = await this.handleUpdateAdmin({ admin, data });
 
@@ -122,7 +146,11 @@ export class AdminService {
     return updatedAdmin.toResponse();
   }
 
-  public async deleteById(id: string): Promise<DeleteResult> {
-    return this.adminRepository.delete({ id });
+  public async deleteById(id: string): Promise<void> {
+    const { affected } = await this.adminRepository.delete({ id });
+
+    if (!affected) {
+      throw new NotFoundException();
+    }
   }
 }

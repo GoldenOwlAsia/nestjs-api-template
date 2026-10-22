@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
-import { LogLevel } from '@nestjs/common';
 
-import type { INestApplication } from '@nestjs/common';
+import type { INestApplication, LogLevel } from '@nestjs/common';
 
 import { isDevelopmentEnv } from '@/utils/helpers';
 
@@ -12,26 +11,30 @@ import { loadMiddlewares } from './app.middleware';
 import { loadErrorHandling } from './app.exception';
 import { loadInterceptors } from './app.interceptor';
 
+/**
+ * Applies prefix, versioning, guards, pipes, filters and interceptors.
+ * Shared by `initApplication` and the e2e tests so both run the same stack.
+ */
+export const configureApp = (app: INestApplication): INestApplication => {
+  loadMiddlewares(app);
+  loadGuards(app);
+  loadInterceptors(app);
+  loadErrorHandling(app);
+  app.enableShutdownHooks();
+
+  return app;
+};
+
 export const initApplication = async (): Promise<INestApplication> => {
   const isDevEnv = isDevelopmentEnv();
 
-  let logLevels: LogLevel[] = ['error', 'log', 'warn'];
+  const logLevels: LogLevel[] = isDevEnv
+    ? ['error', 'warn', 'log', 'verbose', 'debug']
+    : ['error', 'warn', 'log'];
 
-  if (isDevEnv) {
-    logLevels = ['error', 'warn', 'log', 'verbose', 'debug'];
-  }
+  const app = await NestFactory.create(AppModule, { logger: logLevels });
 
-  const app = await NestFactory.create(AppModule, {
-    logger: logLevels,
-  });
-
-  loadMiddlewares(app);
-
-  loadGuards(app);
-
-  loadInterceptors(app);
-
-  loadErrorHandling(app);
+  configureApp(app);
 
   if (isDevEnv) {
     genAPIDocument(app);

@@ -1,4 +1,3 @@
-import { omit } from 'ramda';
 import { Exclude } from 'class-transformer';
 
 import { Column, Entity, BeforeInsert, BeforeUpdate } from 'typeorm';
@@ -70,28 +69,18 @@ export class Customer extends BaseEntity {
     return `${this.firstName} ${this.lastName}`;
   }
 
-  public toResponse(): Omit<
-    this,
-    'password' | 'setInsertingData' | 'setUpdatingData'
-  > & {
-    role: string;
-    gender: string;
-  } {
+  public toResponse() {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...rest } = this;
+
     return {
-      ...omit(['password', 'setInsertingData', 'setUpdatingData'], this),
+      ...rest,
       role: UserRole[UserRole.CUSTOMER],
-      gender: Gender[this.gender] || null,
+      gender: Gender[this.gender] ?? null,
     };
   }
 
-  public toResponseHavingSessions(sessions: Token[]): Omit<
-    this,
-    'password' | 'setInsertingData' | 'setUpdatingData'
-  > & {
-    role: string;
-    gender: string;
-    sessions: Token[];
-  } {
+  public toResponseHavingSessions(sessions: Token[]) {
     return {
       ...this.toResponse(),
       sessions,

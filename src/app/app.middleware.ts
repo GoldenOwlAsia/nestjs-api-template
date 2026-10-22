@@ -1,6 +1,6 @@
 import helmet from 'helmet';
-import * as compression from 'compression';
-import * as cookieParser from 'cookie-parser';
+import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { VersioningType } from '@nestjs/common';
 
 import type { INestApplication } from '@nestjs/common';
@@ -13,7 +13,8 @@ export const loadMiddlewares = (app: INestApplication): void => {
     defaultVersion: '1',
   });
 
-  app.enableCors();
+  // Comma-separated allow-list, e.g. CORS_ORIGIN=https://app.example.com,https://admin.example.com
+  app.enableCors({ origin: process.env.CORS_ORIGIN?.split(',') ?? true });
 
   /**
    * ! If you use GraphQL, we can have some problems

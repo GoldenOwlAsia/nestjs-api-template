@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { Strategy } from 'passport-local';
+import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
 
 import { AuthService } from '@/api/auth/auth.service';
 
@@ -23,18 +23,16 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(req: Request): Promise<ILocalStrategy> {
+  // Runs in a guard, i.e. before the ValidationPipe: AuthService must not trust `role`.
+  async validate(
+    req: Request,
+    email: string,
+    password: string,
+  ): Promise<ILocalStrategy> {
     const { role } = req.body;
 
-    const user = await this.authService.validateUser(req.body);
+    const user = await this.authService.validateUser({ email, role, password });
 
-    if (!user) {
-      throw new UnauthorizedException();
-    }
-
-    return {
-      role,
-      element: user,
-    };
+    return { role, element: user };
   }
 }

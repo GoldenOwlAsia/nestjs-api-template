@@ -1,4 +1,5 @@
 import {
+  Logger,
   Injectable,
   CallHandler,
   NestInterceptor,
@@ -7,14 +8,28 @@ import {
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
+import type { Request, Response } from 'express';
+
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    console.log('Before reaching the handler...');
+  private readonly logger = new Logger('HTTP');
 
-    const now = Date.now();
-    return next
-      .handle()
-      .pipe(tap(() => console.log(`Response Lag... ${Date.now() - now}ms`)));
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const http = context.switchToHttp();
+    const { method, originalUrl } = http.getRequest<Request>();
+    const startedAt = Date.now();
+
+    const log = (status: number) =>
+      this.logger.log(
+        `${method} ${originalUrl} ${status} ${Date.now() - startedAt}ms`,
+      );
+
+    return next.handle().pipe(
+      tap({
+        next: () => log(http.getResponse<Response>().statusCode),
+        // Filters run after interceptors, so read the status off the error itself.
+        error: (error) => log(error?.getStatus?.() ?? 500),
+      }),
+    );
   }
 }

@@ -22,7 +22,7 @@ const UserRegisterRoleRegex =
 
 export class RegisterDto {
   @IsNotEmpty()
-  @Matches(UserRegisterRoleRegex, 'i', {
+  @Matches(new RegExp(UserRegisterRoleRegex), {
     message: `$property must match ${UserRegisterRoleRegex}.`,
   })
   @ApiProperty({

@@ -9,10 +9,11 @@ function getKeyByValue<E>({
     .filter((elm) => isNaN(Number(elm[0])))
     .find((elm) => elm[1]?.toString() === value?.toString())?.[0];
 }
+/** Builds an anchored, exact-match pattern of the enum's keys, e.g. `^(MALE|FEMALE)$`. */
 function convertToRegex<E>(data: E): string {
-  return `${Object.values(data)
+  return `^(${Object.values(data)
     .filter((elm) => isNaN(Number(elm)))
-    .join('|')}`;
+    .join('|')})$`;
 }
 
 function getFirstKey<E>(data: E): string | unknown {

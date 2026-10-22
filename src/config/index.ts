@@ -2,21 +2,21 @@ import { mergeDeepRight } from 'ramda';
 
 import { getEnv } from '@/utils/helpers';
 
-import type { config as base } from './envs/default';
-import type { config as custom } from './envs/production';
+import { config as defaults } from './envs/default';
+import { config as test } from './envs/test';
+import { config as staging } from './envs/staging';
+import { config as production } from './envs/production';
+import { config as development } from './envs/development';
 
-type TDefaultConfig = typeof base;
-type TCustomConfig = typeof custom;
-export type TConfig = TDefaultConfig & TCustomConfig;
+export type TConfig = ReturnType<typeof defaults>;
 
-export const configuration = async (): Promise<TConfig> => {
-  const { config: baseConfig }: { config: TDefaultConfig } = await import(
-    `${__dirname}/envs/default`
-  );
-
-  const { config: customConfig }: { config: TCustomConfig } = await import(
-    `${__dirname}/envs/${getEnv()}`
-  );
-
-  return mergeDeepRight(baseConfig, customConfig);
+const overrides: Record<string, object> = {
+  test,
+  staging,
+  production,
+  development,
 };
+
+/** Per-environment overrides in `envs/<NODE_ENV>.ts` are deep-merged over `envs/default.ts`. */
+export const configuration = (): TConfig =>
+  mergeDeepRight(defaults(), overrides[getEnv()] ?? {}) as TConfig;

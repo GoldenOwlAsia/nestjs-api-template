@@ -14,61 +14,46 @@ export interface IValidatorExceptionResponse extends IBaseExceptionResponse {
   detail?: Record<string, string[]>;
 }
 
+/** Flattens nested DTO errors into `{ 'address.city': ['...'] }`. */
+function collectMessages(
+  errors: ValidationError[],
+  prefix = '',
+  result: Record<string, string[]> = {},
+): Record<string, string[]> {
+  for (const { property, constraints, children } of errors) {
+    const path = prefix ? `${prefix}.${property}` : property;
+
+    if (constraints) {
+      result[path] = Object.values(constraints);
+    }
+
+    if (children?.length) {
+      collectMessages(children, path, result);
+    }
+  }
+
+  return result;
+}
+
 @Catch(ValidatorException)
 export class ValidatorExceptionFilter implements ExceptionFilter {
-  catch(
-    exception: ValidatorException,
-    host: ArgumentsHost,
-  ): Response<IBaseExceptionResponse> {
-    const isDevelopment = isDevelopmentEnv();
+  catch(exception: ValidatorException, host: ArgumentsHost): Response {
+    const detail = collectMessages(exception.errors);
 
-    const response = host.switchToHttp().getResponse<Response>();
+    const body: IValidatorExceptionResponse = {
+      code: Exception.UNPROCESSABLE_ENTITY_CODE,
+      status: HttpStatus.UNPROCESSABLE_ENTITY,
+      message: Object.values(detail)[0]?.[0] ?? 'Invalid Information',
+    };
 
-    try {
-      const { errors } = exception as unknown as {
-        errors: ValidationError[];
-      };
-      const firstMessage = errors[0];
-      const dto = firstMessage.target.constructor.name;
-
-      const detail = errors?.reduce((result, { property, constraints }) => {
-        result[property] = Object.values(constraints);
-
-        return result;
-      }, {});
-
-      const firstError = Object.values(
-        Object.values(detail || {})?.[0] || [] || {},
-      );
-
-      let resBody = <IValidatorExceptionResponse>{
-        code: Exception.BAD_REQUEST_CODE,
-        status: HttpStatus.BAD_REQUEST,
-        message: firstError?.[0] || 'Invalid Information',
-      };
-
-      if (isDevelopment) {
-        resBody = {
-          ...resBody,
-          message: `${firstError?.[0]} Invalid Attribute(s) in ${dto}`,
-          detail,
-        };
-      }
-
-      return response.status(422).send(resBody);
-    } catch (error) {
-      const resBody = <IBaseExceptionResponse>{
-        code: Exception.INTERNAL_ERROR_CODE,
-        status: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'Something went wrong!',
-      };
-
-      if (isDevelopment) {
-        resBody.stack = error?.stack;
-        resBody.message = error?.message;
-      }
-
-      return response.status(HttpStatus.INTERNAL_SERVER_ERROR).send(resBody);
+    if (isDevelopmentEnv()) {
+      body.detail = detail;
     }
+
+    return host
+      .switchToHttp()
+      .getResponse<Response>()
+      .status(body.status)
+      .send(body);
   }
 }

@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import type { DeleteResult } from 'typeorm';
+import type { FindOptionsWhere } from 'typeorm';
+
+import { hash } from '@/utils/helpers';
 
 import { UserRole } from '@/common/enums';
 import { UserAlreadyException } from '@/api/auth/auth.exceptions';
@@ -16,7 +18,7 @@ import type {
   CreatedCustomerDto,
   GotCustomerDetailDto,
 } from './dto';
-import { TokenService } from '../token/token.service';
+import { TokenService } from '@/api/token/token.service';
 
 @Injectable()
 export class CustomerService {
@@ -37,14 +39,14 @@ export class CustomerService {
       throw new UserAlreadyException();
     }
 
-    const createdCustomer = await this.customerRepository.create(data);
+    const createdCustomer = this.customerRepository.create(data);
 
     await this.customerRepository.save(createdCustomer);
 
     return createdCustomer.toResponse();
   }
 
-  public async findOneByEmail(email: string): Promise<Customer> {
+  public async findOneByEmail(email: string): Promise<Customer | null> {
     return this.customerRepository.findOneBy({ email });
   }
 
@@ -54,8 +56,24 @@ export class CustomerService {
   }: {
     email?: string;
     phoneNumber: string;
-  }): Promise<Customer> {
-    return this.customerRepository.findOneBy([{ email }, { phoneNumber }]);
+  }): Promise<Customer | null> {
+    const where: FindOptionsWhere<Customer>[] = [{ phoneNumber }];
+
+    if (email) {
+      where.push({ email });
+    }
+
+    return this.customerRepository.findOneBy(where);
+  }
+
+  private async findByIdOrFail(id: string): Promise<Customer> {
+    const customer = await this.customerRepository.findOneBy({ id });
+
+    if (!customer) {
+      throw new NotFoundException();
+    }
+
+    return customer;
   }
 
   public async getAll(): Promise<GotCustomerDto[]> {
@@ -65,7 +83,7 @@ export class CustomerService {
   }
 
   public async getDetailById(id: string): Promise<GotCustomerDetailDto> {
-    const customer = await this.customerRepository.findOneBy({ id });
+    const customer = await this.findByIdOrFail(id);
 
     const sessions = await this.tokenService.getAllByUser({
       id,
@@ -94,9 +112,15 @@ export class CustomerService {
       }
     }
 
-    const updatedCustomer = await this.customerRepository.create({
+    // @BeforeInsert hashes on create only; updates must hash here.
+    const password = data.password
+      ? await hash.generateWithBcrypt({ source: data.password, salt: 10 })
+      : customer.password;
+
+    const updatedCustomer = this.customerRepository.create({
       ...customer,
       ...data,
+      password,
     });
 
     await this.customerRepository.save(updatedCustomer);
@@ -111,7 +135,7 @@ export class CustomerService {
     id: string;
     data: UpdateCustomerDto;
   }): Promise<GotCustomerDto> {
-    const customer = await this.customerRepository.findOneBy({ id });
+    const customer = await this.findByIdOrFail(id);
 
     const updatedCustomer = await this.handleUpdateCustomer({ customer, data });
 
@@ -130,7 +154,11 @@ export class CustomerService {
     return updatedCustomer.toResponse();
   }
 
-  public async deleteById(id: string): Promise<DeleteResult> {
-    return this.customerRepository.delete({ id });
+  public async deleteById(id: string): Promise<void> {
+    const { affected } = await this.customerRepository.delete({ id });
+
+    if (!affected) {
+      throw new NotFoundException();
+    }
   }
 }
