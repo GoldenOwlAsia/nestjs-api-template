@@ -6,6 +6,9 @@ export const config = () => ({
     secret: process.env.JWT_SECRET,
     refreshSecret: process.env.JWT_REFRESH_SECRET,
   },
+  redis: {
+    url: process.env.REDIS_URL,
+  },
   token: {
     access: { lifetime: 15 * Time.ONE_MINUTE },
     refresh: { lifetime: 30 * Time.ONE_DAY },

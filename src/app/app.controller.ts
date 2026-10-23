@@ -23,4 +23,10 @@ export class AppController {
 
     return { status: 'ok', db: 'up' };
   }
+
+  /** Admin-only: throws an unexpected error so you can check it reaches Sentry. */
+  @InjectRoute(appRoutes.debugSentry)
+  debugSentry(): never {
+    throw new Error('Sentry test error from GET /debug/sentry');
+  }
 }

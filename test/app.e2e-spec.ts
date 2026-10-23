@@ -16,7 +16,8 @@ describe('App (e2e)', () => {
   let http: () => ReturnType<typeof request>;
 
   const phone = () =>
-    `09${Math.floor(10_000_000 + Math.random() * 89_999_999)}`;
+    // 090 is always a valid VN mobile prefix (095, for one, is not).
+    `090${String(Math.floor(Math.random() * 10_000_000)).padStart(7, '0')}`;
   const makeUser = () => ({
     email: `e2e-${randomUUID().slice(0, 8)}@example.com`,
     password: 'P@ssw0rd',

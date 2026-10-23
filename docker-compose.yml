@@ -15,17 +15,32 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:8-alpine
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build: .
     env_file: .env
     environment:
       DB_HOST: db
       DB_PORT: 5432
+      REDIS_URL: redis://redis:6379
       PORT: 3000 # the container always listens on 3000; ${PORT} only picks the host port
     ports:
       - '${PORT:-3000}:3000'
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       # The slim image has no curl; Node's fetch is enough. Fails while the DB is down (503).
@@ -44,3 +59,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:

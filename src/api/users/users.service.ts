@@ -1,9 +1,13 @@
 import {
+  Inject,
   Injectable,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+
+import type { Cache } from 'cache-manager';
 
 import type { FindOptionsWhere, Repository } from 'typeorm';
 
@@ -21,12 +25,17 @@ import type {
   UserDetailResponseDto,
 } from './dto';
 
+/** Cache key for the admin user list; every write below invalidates it. */
+export const USERS_LIST_CACHE_KEY = 'users:list';
+const USERS_LIST_TTL = 30_000;
+
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private tokenService: TokenService,
+    @Inject(CACHE_MANAGER) private cache: Cache,
   ) {}
 
   public async create(data: CreateUserDto): Promise<UserResponseDto> {
@@ -37,6 +46,7 @@ export class UsersService {
     const user = this.userRepository.create(data);
 
     await this.userRepository.save(user);
+    await this.cache.del(USERS_LIST_CACHE_KEY);
 
     return user.toResponse();
   }
@@ -83,10 +93,22 @@ export class UsersService {
     }
   }
 
+  /** Cache-aside example: served from Redis for 30s, dropped on any user write. */
   public async getAll(): Promise<UserResponseDto[]> {
-    const users = await this.userRepository.find();
+    const cached =
+      await this.cache.get<UserResponseDto[]>(USERS_LIST_CACHE_KEY);
 
-    return users.map((user) => user.toResponse());
+    if (cached) {
+      return cached;
+    }
+
+    const users = (await this.userRepository.find()).map((user) =>
+      user.toResponse(),
+    );
+
+    await this.cache.set(USERS_LIST_CACHE_KEY, users, USERS_LIST_TTL);
+
+    return users;
   }
 
   public async getDetailById(id: string): Promise<UserDetailResponseDto> {
@@ -121,6 +143,7 @@ export class UsersService {
     });
 
     await this.userRepository.save(updatedUser);
+    await this.cache.del(USERS_LIST_CACHE_KEY);
 
     return updatedUser.toResponse();
   }
@@ -146,5 +169,6 @@ export class UsersService {
     this.assertCanManage(actor, await this.findByIdOrFail(id));
 
     await this.userRepository.delete({ id });
+    await this.cache.del(USERS_LIST_CACHE_KEY);
   }
 }

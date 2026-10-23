@@ -1,3 +1,6 @@
+// Must stay the first import: Sentry instruments modules loaded after it.
+import './instrument';
+
 import { Logger } from '@nestjs/common';
 
 import { initApplication } from '@/app';

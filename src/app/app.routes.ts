@@ -1,6 +1,8 @@
 import { HttpStatus, RequestMethod } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 
+import { UserRole } from '@/common/enums';
+
 import type { IRouteParams } from '@/decorators';
 
 export default {
@@ -19,6 +21,19 @@ export default {
         {
           status: HttpStatus.SERVICE_UNAVAILABLE,
           description: 'Database is unreachable',
+        },
+      ],
+    },
+  },
+  debugSentry: <IRouteParams>{
+    path: '/debug/sentry',
+    method: RequestMethod.GET,
+    roles: [UserRole.ADMIN],
+    swaggerInfo: {
+      responses: [
+        {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          description: 'Always: throws a test error to verify Sentry reporting',
         },
       ],
     },

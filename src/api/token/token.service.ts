@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { LessThan } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { hash } from '@/utils/helpers';
@@ -44,6 +45,15 @@ export class TokenService {
 
   public async deleteById(id: string): Promise<void> {
     await this.tokenRepository.delete({ id });
+  }
+
+  /** Deletes sessions last rotated before `cutoff`; returns how many. */
+  public async deleteExpired(cutoff: Date): Promise<number> {
+    const { affected } = await this.tokenRepository.delete({
+      updatedAt: LessThan(cutoff),
+    });
+
+    return affected ?? 0;
   }
 
   public async getAllByUser(userId: string): Promise<Token[]> {

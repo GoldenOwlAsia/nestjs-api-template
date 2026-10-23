@@ -3,6 +3,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 import { ThrottlerException } from '@nestjs/throttler';
 
 import type { ArgumentsHost } from '@nestjs/common';
@@ -13,6 +14,9 @@ import { BaseException, ValidatorException } from '@/exceptions';
 
 import { AdvancedExceptionFilter } from './base-exception.filter';
 import { ValidatorExceptionFilter } from './validator-exception.filter';
+
+// Sentry's exports are non-configurable, so mock the module instead of spying.
+jest.mock('@sentry/nestjs', () => ({ captureException: jest.fn() }));
 
 function fakeHost() {
   const response = { status: jest.fn().mockReturnThis(), send: jest.fn() };
@@ -31,10 +35,13 @@ describe('AdvancedExceptionFilter', () => {
   const filter = new AdvancedExceptionFilter();
   const originalEnv = process.env.NODE_ENV;
 
-  beforeEach(() => jest.spyOn(Logger.prototype, 'error').mockImplementation());
+  beforeEach(() => {
+    jest.spyOn(Logger.prototype, 'error').mockImplementation();
+  });
   afterEach(() => {
     process.env.NODE_ENV = originalEnv;
     jest.restoreAllMocks();
+    jest.mocked(Sentry.captureException).mockClear();
   });
 
   it('uses the fixed public message for known statuses', () => {
@@ -89,6 +96,9 @@ describe('AdvancedExceptionFilter', () => {
     expect(Logger.prototype.error).toHaveBeenCalledWith(error, {
       requestId: 'req-123',
     });
+    expect(Sentry.captureException).toHaveBeenCalledWith(error, {
+      tags: { requestId: 'req-123' },
+    });
   });
 
   it('exposes message and stack of unknown errors outside production', () => {
@@ -101,10 +111,11 @@ describe('AdvancedExceptionFilter', () => {
     expect(body().stack).toContain('boom');
   });
 
-  it('does not log expected HTTP errors', () => {
+  it('does not log or report expected HTTP errors', () => {
     filter.catch(new UnauthorizedException(), fakeHost().host);
 
     expect(Logger.prototype.error).not.toHaveBeenCalled();
+    expect(Sentry.captureException).not.toHaveBeenCalled();
   });
 });
 

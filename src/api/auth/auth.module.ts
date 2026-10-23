@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 
+import { MailModule } from '@/mail/mail.module';
 import { TokenModule } from '@/api/token/token.module';
 import { UsersModule } from '@/api/users/users.module';
 
@@ -13,6 +14,7 @@ import { JwtStrategy, LocalStrategy } from './strategies';
 @Module({
   imports: [
     TokenModule,
+    MailModule,
     PassportModule,
     UsersModule,
     JwtModule.registerAsync({

@@ -6,6 +6,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 
 import { hash } from '@/utils/helpers';
 import { UserRole } from '@/common/enums';
+import { MailService } from '@/mail/mail.service';
 import { TokenService } from '@/api/token/token.service';
 import { UsersService } from '@/api/users/users.service';
 
@@ -25,6 +26,7 @@ export class AuthService {
     private usersService: UsersService,
     private tokenService: TokenService,
     private configService: ConfigService,
+    private mailService: MailService,
   ) {}
 
   private signTokens(sid: string): TokensDto {
@@ -43,7 +45,18 @@ export class AuthService {
   }
 
   public async register(userInfo: RegisterDto): Promise<UserResponseDto> {
-    return this.usersService.create({ ...userInfo, role: UserRole.CUSTOMER });
+    const user = await this.usersService.create({
+      ...userInfo,
+      role: UserRole.CUSTOMER,
+    });
+
+    // Queued, not sent inline: sign-up doesn't wait on the mail provider.
+    await this.mailService.sendWelcome({
+      email: user.email,
+      firstName: user.firstName,
+    });
+
+    return user;
   }
 
   public async login(user: User): Promise<LoggedInDto> {

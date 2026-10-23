@@ -46,6 +46,7 @@ describe('AuthService', () => {
     findOneById: jest.Mock;
     create: jest.Mock;
   };
+  let mailService: { sendWelcome: jest.Mock };
   let service: AuthService;
 
   beforeEach(() => {
@@ -73,11 +74,14 @@ describe('AuthService', () => {
       create: jest.fn(async (data) => data),
     };
 
+    mailService = { sendWelcome: jest.fn(async () => undefined) };
+
     service = new AuthService(
       jwtService,
       usersService as any,
       new TokenService(tokens as any),
       { get: (key: string) => config[key] } as unknown as ConfigService,
+      mailService as any,
     );
   });
 
@@ -97,6 +101,21 @@ describe('AuthService', () => {
     expect(usersService.create).toHaveBeenCalledWith(
       expect.objectContaining({ role: UserRole.CUSTOMER }),
     );
+  });
+
+  it('register queues a welcome email for the new user', async () => {
+    await service.register({
+      email: 'bob@example.com',
+      password: PASSWORD,
+      firstName: 'Bob',
+      lastName: 'Le',
+      phoneNumber: '0911111111',
+    });
+
+    expect(mailService.sendWelcome).toHaveBeenCalledWith({
+      email: 'bob@example.com',
+      firstName: 'Bob',
+    });
   });
 
   describe('validateUser', () => {

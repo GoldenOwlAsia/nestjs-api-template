@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nestjs';
 import { Catch, HttpException, HttpStatus, Logger } from '@nestjs/common';
 
 import type { Request, Response } from 'express';
@@ -31,9 +32,11 @@ export class AdvancedExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(AdvancedExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost): Response {
-    const requestId = host.switchToHttp().getRequest<Request>()?.headers?.[
+    const header = host.switchToHttp().getRequest<Request>()?.headers?.[
       REQUEST_ID_HEADER
     ];
+    // The request-id middleware always sets a single string.
+    const requestId = typeof header === 'string' ? header : undefined;
     const body = this.toBody(exception, requestId);
 
     return host
@@ -45,7 +48,7 @@ export class AdvancedExceptionFilter implements ExceptionFilter {
 
   private toBody(
     exception: unknown,
-    requestId?: string | string[],
+    requestId?: string,
   ): IBaseExceptionResponse {
     if (exception instanceof BaseException) {
       const { code, message } = exception;
@@ -68,8 +71,10 @@ export class AdvancedExceptionFilter implements ExceptionFilter {
       };
     }
 
-    // Anything else is a bug: always log it, only expose details outside production.
+    // Anything else is a bug: always log and report it (Sentry is a no-op
+    // without SENTRY_DSN), and only expose details outside production.
     this.logger.error(exception, { requestId });
+    Sentry.captureException(exception, { tags: { requestId } });
 
     const body: IBaseExceptionResponse = {
       code: Exception.INTERNAL_ERROR_CODE,

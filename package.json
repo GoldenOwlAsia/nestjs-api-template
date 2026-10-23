@@ -23,10 +23,15 @@
     "migrate:up": "yarn typeorm migration:run",
     "migrate:down": "yarn typeorm migration:revert",
     "lint:fix": "eslint \"{src,test}/**/*.ts\" --fix",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "migrate:generate": "yarn typeorm migration:generate",
-    "migrate:prod": "typeorm migration:run -d dist/database/data-source.js"
+    "migrate:prod": "typeorm migration:run -d dist/database/data-source.js",
+    "prepare": "husky || true"
   },
   "dependencies": {
+    "@keyv/redis": "^6.1.0",
+    "@nestjs/bullmq": "^12.0.0",
+    "@nestjs/cache-manager": "^12.0.1",
     "@nestjs/common": "^12.2.0",
     "@nestjs/config": "^12.0.1",
     "@nestjs/core": "^12.2.0",
@@ -36,14 +41,20 @@
     "@nestjs/swagger": "^12.0.3",
     "@nestjs/throttler": "^6.7.1",
     "@nestjs/typeorm": "^12.0.2",
+    "@scalar/nestjs-api-reference": "^1.2.30",
+    "@sentry/nestjs": "^11.8.0",
     "bcrypt": "^6.0.0",
+    "bullmq": "^6.4.0",
+    "cache-manager": "^7.2.9",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "dotenv": "^18.0.8",
     "helmet": "^8.3.0",
+    "ioredis": "^6.0.0",
     "joi": "^18.3.0",
+    "keyv": "^6.1.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
@@ -73,7 +84,9 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.7",
     "globals": "^17.13.0",
+    "husky": "^9.1.7",
     "jest": "^30.5.2",
+    "lint-staged": "^17.6.0",
     "prettier": "^3.9.10",
     "source-map-support": "^0.5.21",
     "supertest": "^7.3.1",
@@ -105,5 +118,9 @@
   },
   "engines": {
     "node": "^24.22.1 || >=26.12.1"
+  },
+  "lint-staged": {
+    "*.ts": "eslint --fix",
+    "*.{json,md,yml,yaml}": "prettier --write"
   }
 }

@@ -5,7 +5,7 @@ import { UserRole } from '@/common/enums';
 import { UserAlreadyException } from '@/api/auth/auth.exceptions';
 
 import { User } from './entities';
-import { UsersService } from './users.service';
+import { USERS_LIST_CACHE_KEY, UsersService } from './users.service';
 
 describe('UsersService', () => {
   const OLD_PASSWORD_HASH = hashSync('0ldP@ssword', 4);
@@ -29,6 +29,7 @@ describe('UsersService', () => {
     save: jest.Mock;
     delete: jest.Mock;
   };
+  let cache: Map<string, unknown>;
   let service: UsersService;
 
   beforeEach(() => {
@@ -61,9 +62,16 @@ describe('UsersService', () => {
       delete: jest.fn(async () => ({ affected: 1 })),
     };
 
+    cache = new Map();
+
     service = new UsersService(
       repository as any,
       { getAllByUser: jest.fn(async () => []) } as any,
+      {
+        get: async (key: string) => cache.get(key),
+        set: async (key: string, value: unknown) => cache.set(key, value),
+        del: async (key: string) => cache.delete(key),
+      } as any,
     );
   });
 
@@ -180,5 +188,38 @@ describe('UsersService', () => {
     await expect(
       call(service, '00000000-0000-4000-8000-000000000000'),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  describe('user list cache', () => {
+    it('serves the second getAll from the cache', async () => {
+      const first = await service.getAll();
+      const second = await service.getAll();
+
+      expect(second).toEqual(first);
+      expect(repository.find).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      [
+        'create',
+        (s: UsersService) =>
+          s.create({
+            email: 'new@example.com',
+            password: 'P@ssw0rd',
+            firstName: 'N',
+            lastName: 'U',
+            phoneNumber: '0933333333',
+          }),
+      ],
+      ['update', (s: UsersService) => s.update(alice, { lastName: 'Tran' })],
+      ['deleteById', (s: UsersService) => s.deleteById(alice.id, root)],
+    ])('%s invalidates the cached list', async (_, write) => {
+      await service.getAll();
+      expect(cache.has(USERS_LIST_CACHE_KEY)).toBe(true);
+
+      await write(service);
+
+      expect(cache.has(USERS_LIST_CACHE_KEY)).toBe(false);
+    });
   });
 });
