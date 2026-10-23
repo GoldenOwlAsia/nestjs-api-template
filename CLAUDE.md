@@ -6,16 +6,17 @@ NestJS 12 + TypeORM 1 + Postgres + Redis (BullMQ 6, cache) REST API template, wi
 
 ```bash
 nvm use                                # Node 24.22.1+ required (engines + @nestjs/schematics 12)
-docker compose up -d db redis && yarn migrate:up
-yarn start:dev
-yarn lint && yarn typecheck && yarn build  # lint does not --fix; use lint:fix
-yarn test                              # unit tests (src/**/*.spec.ts), no DB or Redis needed
-yarn test:e2e                          # needs a running, migrated DB and Redis
-yarn migrate:generate src/database/migrations/<Name>
+corepack enable                        # pnpm, pinned via package.json#packageManager
+docker compose up -d db redis && pnpm migrate:up
+pnpm start:dev
+pnpm lint && pnpm typecheck && pnpm build  # lint does not --fix; use lint:fix
+pnpm test                              # unit tests (src/**/*.spec.ts), no DB or Redis needed
+pnpm test:e2e                          # needs a running, migrated DB and Redis
+pnpm migrate:generate src/database/migrations/<Name>
 docker compose up --build              # full stack; api runs migrations on start
 ```
 
-Before calling a change done, run `yarn lint`, `yarn typecheck`, `yarn build`, `yarn test` and `yarn test:e2e`.
+Before calling a change done, run `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test` and `pnpm test:e2e`.
 
 A husky pre-commit hook runs lint-staged (ESLint and Prettier on staged files). Never bypass it with `--no-verify`.
 
@@ -38,11 +39,17 @@ A husky pre-commit hook runs lint-staged (ESLint and Prettier on staged files). 
 - **`src/instrument.ts` must stay the first import in `main.ts`.** Sentry can only instrument modules loaded after it.
 - **Node is pinned to the patched 24.22.1** in `.nvmrc`, the `Dockerfile` and `engines` (CVE-2026-111497, a Brotli RCE that `body-parser` exposes). Don't loosen these pins.
 
+### Package manager (pnpm)
+
+- **pnpm only** (`pnpm-lock.yaml`); never add a `yarn.lock` or `package-lock.json`. pnpm's `node_modules` is strict, so every package imported at runtime must be listed in `dependencies`. A package that only arrives through another one fails in production, where dev dependencies are pruned.
+- **New dependency with an install script?** `pnpm install` fails until you add it to `allowBuilds` in `pnpm-workspace.yaml` (`true` only if it needs to build).
+- **Packages published less than 24 hours ago are rejected** (pnpm's `minimumReleaseAge`). Don't disable the check; pin the previous release and let Dependabot bump it later.
+
 ### Data
 
 - **TypeORM 1 throws on `undefined`/`null` in `where`.** Build optional conditions conditionally (see `findOneByEmailOrPhoneNumber`) and use `IsNull()` for null checks.
 - **The schema changes only through migrations** (`synchronize: false`). `src/database/data-source.ts` is the one DB config, shared by the app and the CLI. Keep it free of `@/` imports.
-- **Migrations are frozen.** Never import app code (enums, helpers) into a migration. Write literal values, because the app code will change and the old migration must still run on a fresh database. After writing one, `yarn typeorm migration:generate <path> --dr` should report no changes.
+- **Migrations are frozen.** Never import app code (enums, helpers) into a migration. Write literal values, because the app code will change and the old migration must still run on a fresh database. After writing one, `pnpm typeorm migration:generate <path> --dr` should report no changes.
 - **Passwords are hashed in `@BeforeInsert` only.** Update paths must hash explicitly, as `UsersService.update` does.
 - **Cache invalidation**: a cached read must be invalidated on every write path, as with `USERS_LIST_CACHE_KEY` in `UsersService`.
 

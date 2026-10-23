@@ -1,0 +1,13 @@
+# Dependency build scripts pnpm may run (pnpm blocks all others).
+allowBuilds:
+  bcrypt: true # native password hashing; compiles if no prebuilt binary fits
+  msgpackr-extract: true # optional native speed-up used by BullMQ
+  '@scarf/scarf': false # install-time analytics ping
+  '@parcel/watcher': false # ships prebuilt binaries
+  unrs-resolver: false # ships prebuilt binaries
+
+peerDependencyRules:
+  allowedVersions:
+    # typeorm's optional ioredis peer is only for its Redis query cache, which
+    # this project doesn't use; ioredis 6 is here for BullMQ.
+    typeorm>ioredis: '6'

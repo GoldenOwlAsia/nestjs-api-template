@@ -1,10 +1,13 @@
 # syntax=docker/dockerfile:1
 FROM node:24.22.1-slim AS build
+# pnpm comes from corepack, at the exact version in package.json#packageManager.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
 WORKDIR /app
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY . .
-RUN yarn build && yarn install --frozen-lockfile --production
+RUN pnpm build && pnpm prune --prod
 
 FROM node:24.22.1-slim
 ENV NODE_ENV=production

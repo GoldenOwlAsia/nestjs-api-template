@@ -5,6 +5,7 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "packageManager": "pnpm@12.15.0",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -20,11 +21,11 @@
     "test:e2e": "NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json --runInBand",
     "typeorm": "ts-node -r tsconfig-paths/register --transpile-only ./node_modules/typeorm/cli.js -d src/database/data-source.ts",
     "migrate:create": "ts-node --transpile-only ./node_modules/typeorm/cli.js migration:create",
-    "migrate:up": "yarn typeorm migration:run",
-    "migrate:down": "yarn typeorm migration:revert",
+    "migrate:up": "pnpm typeorm migration:run",
+    "migrate:down": "pnpm typeorm migration:revert",
     "lint:fix": "eslint \"{src,test}/**/*.ts\" --fix",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "migrate:generate": "yarn typeorm migration:generate",
+    "migrate:generate": "pnpm typeorm migration:generate",
     "migrate:prod": "typeorm migration:run -d dist/database/data-source.js",
     "prepare": "husky || true"
   },

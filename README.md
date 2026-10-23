@@ -2,17 +2,18 @@
 
 A NestJS starter for REST APIs. It comes with Postgres, JWT auth with rotating refresh tokens, roles, Redis-backed queues and cache, Sentry, API docs, Docker and CI.
 
-**Stack:** NestJS 12 · TypeORM 1 · PostgreSQL 17 · Redis 8 · BullMQ 6 · Passport (local + JWT) · class-validator · Swagger + Scalar · Sentry · Jest 30 · ESLint 10 · Node 24
+**Stack:** pnpm 12 · NestJS 12 · TypeORM 1 · PostgreSQL 17 · Redis 8 · BullMQ 6 · Passport (local + JWT) · class-validator · Swagger + Scalar · Sentry · Jest 30 · ESLint 10 · Node 24
 
 ## Quick start
 
 ```bash
 nvm use                       # Node 24.22.1+ (.nvmrc); `engines` refuses unpatched versions
+corepack enable               # provides the pnpm version pinned in package.json
 cp .env.example .env
-yarn install                  # also installs the husky pre-commit hook
+pnpm install                  # also installs the husky pre-commit hook
 docker compose up -d db redis # Postgres + Redis
-yarn migrate:up
-yarn start:dev
+pnpm migrate:up
+pnpm start:dev
 ```
 
 - **API:** http://localhost:3000/api/v1. All paths below are relative to `/api/v1`.
@@ -50,16 +51,21 @@ App settings such as token lifetimes and Swagger titles live in `src/config/envs
 
 | Script                                                 |                                                                        |
 | ------------------------------------------------------ | ---------------------------------------------------------------------- |
-| `yarn start:dev`                                       | Watch mode                                                             |
-| `yarn build` / `yarn start:prod`                       | Compile to `dist/` and run it                                          |
-| `yarn typecheck`                                       | TypeScript type check (no emit)                                        |
-| `yarn lint` / `yarn lint:fix`                          | ESLint + Prettier (check / fix)                                        |
-| `yarn test`                                            | Unit tests (`src/**/*.spec.ts`); no database or Redis needed           |
-| `yarn test:e2e`                                        | E2E tests (`test/`) against a real, migrated database and Redis        |
-| `yarn migrate:generate src/database/migrations/<Name>` | Generate a migration from entity changes                               |
-| `yarn migrate:create src/database/migrations/<Name>`   | Create an empty migration                                              |
-| `yarn migrate:up` / `yarn migrate:down`                | Run / revert migrations (from TS sources)                              |
-| `yarn migrate:prod`                                    | Run migrations from the compiled `dist/`, as the Docker container does |
+| `pnpm start:dev`                                       | Watch mode                                                             |
+| `pnpm build` / `pnpm start:prod`                       | Compile to `dist/` and run it                                          |
+| `pnpm typecheck`                                       | TypeScript type check (no emit)                                        |
+| `pnpm lint` / `pnpm lint:fix`                          | ESLint + Prettier (check / fix)                                        |
+| `pnpm test`                                            | Unit tests (`src/**/*.spec.ts`); no database or Redis needed           |
+| `pnpm test:e2e`                                        | E2E tests (`test/`) against a real, migrated database and Redis        |
+| `pnpm migrate:generate src/database/migrations/<Name>` | Generate a migration from entity changes                               |
+| `pnpm migrate:create src/database/migrations/<Name>`   | Create an empty migration                                              |
+| `pnpm migrate:up` / `pnpm migrate:down`                | Run / revert migrations (from TS sources)                              |
+| `pnpm migrate:prod`                                    | Run migrations from the compiled `dist/`, as the Docker container does |
+
+**pnpm:** the version is pinned in `package.json#packageManager`, so corepack provides it. pnpm 12 adds two safety rules:
+
+- **Build scripts:** dependencies may run install scripts only if `pnpm-workspace.yaml` (`allowBuilds`) allows them; anything else fails the install until it is approved or denied.
+- **Release age:** pnpm refuses package versions published less than 24 hours ago.
 
 **Pre-commit hook:** husky + lint-staged run ESLint and Prettier on staged files only. A lint error that can't be fixed automatically blocks the commit.
 
@@ -182,7 +188,7 @@ Use `@ReqUser()` to get the authenticated `{ sid, role, element }`. `element` is
 
 1. Create `src/api/<name>/` with `<name>.module.ts`, `.controller.ts`, `.service.ts`, `.routes.ts`, `dto/` and `entities/`, following `users/`.
 2. Import the module in `src/app/app.module.ts`. Entities named `*.entity.ts` are picked up automatically.
-3. Generate a migration: `yarn migrate:generate src/database/migrations/<Name>`. Review it, then run `yarn migrate:up`.
+3. Generate a migration: `pnpm migrate:generate src/database/migrations/<Name>`. Review it, then run `pnpm migrate:up`.
 4. Add unit tests next to the service, and e2e tests in `test/`.
 
 ## License
