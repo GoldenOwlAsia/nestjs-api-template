@@ -37,9 +37,10 @@ function respond<T>(data: T | ISuccessResponseParams<T>): ISuccessResponse<T> {
 }
 
 @Injectable()
-export class ResponseInterceptor<T>
-  implements NestInterceptor<T, ISuccessResponse<T>>
-{
+export class ResponseInterceptor<T> implements NestInterceptor<
+  T,
+  ISuccessResponse<T>
+> {
   intercept(
     context: ExecutionContext,
     next: CallHandler,

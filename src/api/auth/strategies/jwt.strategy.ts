@@ -1,3 +1,4 @@
+import type { Request } from 'express';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
@@ -6,14 +7,17 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { AuthService } from '@/api/auth/auth.service';
 
 import type { UserRole } from '@/common/enums';
-import type { TUser } from '@/api/auth/auth.service';
-
+import type { User } from '@/api/users/entities';
 import type { ITokenPayload } from '@/api/auth/auth.interface';
 
+/** What `@ReqUser()` returns on JWT-protected routes. */
 export interface IJwtStrategy {
-  element: TUser;
+  sid: string;
   role: UserRole;
+  element: User;
 }
+
+const extractToken = ExtractJwt.fromAuthHeaderAsBearerToken();
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -23,17 +27,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   ) {
     super({
       ignoreExpiration: false,
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: extractToken,
       secretOrKey: configService.get('jwt.secret'),
+      passReqToCallback: true,
     });
   }
 
-  async validate({ email, role }: ITokenPayload): Promise<IJwtStrategy> {
-    const user = await this.authService.validateJwtUser({ email, role });
-
-    return {
-      role,
-      element: user,
-    };
+  async validate(req: Request, { sid }: ITokenPayload): Promise<IJwtStrategy> {
+    return this.authService.authenticate(sid, extractToken(req));
   }
 }

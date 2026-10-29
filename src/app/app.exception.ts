@@ -1,5 +1,4 @@
-import { Reflector } from '@nestjs/core';
-import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 
 import type { INestApplication } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
@@ -11,13 +10,13 @@ export const loadErrorHandling = (app: INestApplication): void => {
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
       exceptionFactory: (validationErrors: ValidationError[] = []) => {
         return new ValidatorException({ errors: validationErrors });
       },
     }),
   );
-
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   app.useGlobalFilters(
     new AdvancedExceptionFilter(),

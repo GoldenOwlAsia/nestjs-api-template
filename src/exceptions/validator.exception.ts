@@ -13,7 +13,7 @@ interface IBaseValidatorException extends Partial<IBaseExceptionResponse> {
 }
 
 export class ValidatorException extends BaseException {
-  protected errors: ValidationError[];
+  public readonly errors: ValidationError[];
 
   constructor({
     errors = [],

@@ -38,3 +38,5 @@ lerna-debug.log*
 # environments
 docker.env
 .env
+# TypeScript incremental build info
+*.tsbuildinfo

@@ -1,4 +1,4 @@
 export * from './login.dto';
+export * from './tokens.dto';
 export * from './loggedIn.dto';
-export * from './register.dto';
-export * from './registered.dto';
+export { RegisterDto } from '@/api/users/dto';

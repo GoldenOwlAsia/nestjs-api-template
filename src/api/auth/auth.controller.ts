@@ -6,26 +6,38 @@ import authRoutes from './auth.routes';
 
 import { AuthService } from './auth.service';
 
-import { RegisterDto } from './dto';
+import { RefreshTokenDto, RegisterDto } from './dto';
 
-import type { LoggedInDto, RegisteredDto } from './dto';
-import { ILocalStrategy } from './strategies';
+import type { LoggedInDto, TokensDto } from './dto';
+import type { IJwtStrategy } from './strategies';
+import type { User } from '@/api/users/entities';
+import type { UserResponseDto } from '@/api/users/dto';
 
 @InjectController({ name: authRoutes.index, isCore: true })
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @InjectRoute(authRoutes.register)
-  public async register(@Body() userInfo: RegisterDto): Promise<RegisteredDto> {
-    const registeredUser = await this.authService.register(userInfo);
-
-    return registeredUser;
+  public async register(
+    @Body() userInfo: RegisterDto,
+  ): Promise<UserResponseDto> {
+    return this.authService.register(userInfo);
   }
 
   @InjectRoute(authRoutes.login)
-  public async login(@ReqUser() user: ILocalStrategy): Promise<LoggedInDto> {
-    const loggedInUser = await this.authService.login(user);
+  public async login(@ReqUser() user: User): Promise<LoggedInDto> {
+    return this.authService.login(user);
+  }
 
-    return loggedInUser;
+  @InjectRoute(authRoutes.refresh)
+  public async refresh(
+    @Body() { refreshToken }: RefreshTokenDto,
+  ): Promise<TokensDto> {
+    return this.authService.refresh(refreshToken);
+  }
+
+  @InjectRoute(authRoutes.logout)
+  public async logout(@ReqUser() user: IJwtStrategy): Promise<void> {
+    await this.authService.logout(user);
   }
 }

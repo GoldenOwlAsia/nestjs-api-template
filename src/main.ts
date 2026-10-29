@@ -1,9 +1,16 @@
+// Must stay the first import: Sentry instruments modules loaded after it.
+import './instrument';
+
+import { Logger } from '@nestjs/common';
+
 import { initApplication } from '@/app';
 
 async function bootstrap() {
   const app = await initApplication();
 
-  const PORT = process.env.PORT || 3000;
-  return app.listen(PORT, () => console.log(`Server are running on ${PORT}`));
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+
+  Logger.log(`Server is running on port ${port}`, 'Bootstrap');
 }
 bootstrap();

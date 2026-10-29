@@ -10,19 +10,3 @@ export function IsOnlyDate() {
     }),
   );
 }
-
-export function IsValidGender() {
-  return applyDecorators(
-    Matches(Regex.GENDER, 'i', {
-      message: `$property must match ${Regex.GENDER}.`,
-    }),
-  );
-}
-
-export function IsValidUserRole() {
-  return applyDecorators(
-    Matches(Regex.USER_ROLE, 'i', {
-      message: `$property must match ${Regex.USER_ROLE}.`,
-    }),
-  );
-}
