@@ -42,7 +42,7 @@
     "@nestjs/swagger": "^12.0.3",
     "@nestjs/throttler": "^6.7.1",
     "@nestjs/typeorm": "^12.0.2",
-    "@scalar/nestjs-api-reference": "^1.2.30",
+    "@scalar/nestjs-api-reference": "^1.2.31",
     "@sentry/nestjs": "^11.8.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^6.4.0",
